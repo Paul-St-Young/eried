@@ -76,7 +76,8 @@ def main():
   evals = get_all_states(h1, eri, nmo, nelec)
   e0 = np.sort(evals) + h0
   msg = 'ground state energy %f out of %d states\n' % (e0[0], len(evals))
-  msg += ' gap = %f' % (e0[1]-e0[0])
+  if len(evals) > 1:
+    msg += ' gap = %f' % (e0[1]-e0[0])
   if args.verbose:
     print(msg)
   # save eigenvalues
