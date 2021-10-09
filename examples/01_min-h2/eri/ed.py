@@ -144,7 +144,6 @@ def main():
   args = parser.parse_args()
   nup = args.nup
   ndn = args.ndn
-  e2e = args.e2e
 
   fyml = args.fyml
   if fyml is None:
@@ -153,7 +152,7 @@ def main():
   ret = read_h5(args.fh5)
   h0 = ret['h0'].real if 'h0' in ret else 0
   h1 = ret['h1']*args.lam
-  eri = ret['h2']*args.lam  # physicist
+  eri = ret['h2']*args.e2e  # physicist
 
   nsite = len(h1)
   if args.show_states:
