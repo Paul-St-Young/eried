@@ -21,6 +21,18 @@ def calc_h1_ndiff0(soccl, h1):
   h1v = sum([h1[m1, m1] for (ms, m1) in soccl])
   return h1v
 
+def calc_h2_ndiff0(soccl, eri):
+  # direct - exchange
+  # direct: destroy m, create m; destroy n, create n
+  # exchange: destroy n, create m; destroy m, create n
+  h2v = 0  # [mm|nn] - [mn|nm]
+  for (ms, m1), (ns, n1) in combinations(soccl, 2):
+    h2v += eri[m1, n1, m1, n1]
+    # exchange contribution if same spin
+    if (ms == ns):
+      h2v -= eri[m1, n1, n1, m1]
+  return h2v
+
 def ed(nup, ndn, h1, eri, save_hfci=False):
   from time import time
   nsite = len(eri)
@@ -63,16 +75,12 @@ def ed(nup, ndn, h1, eri, save_hfci=False):
         occl = np.where(bj)[0]
         soccl = [spin_and_orb(i, nsite) for i in occl]
         h1v = calc_h1_ndiff0(soccl, h1)
+        h2v = calc_h2_ndiff0(soccl, eri)
         ham[istate, jstate] = h1v+h2v
         continue
       create, destroy = diff(bi, bj)
       if ndiff == 2:
-        m = create[0]
-        p = destroy[0]
-        ms, m1 = spin_and_orb(m, nsite)
-        ps, p1 = spin_and_orb(p, nsite)
-        if ms == ps:
-          h1v = h1[m1, p1]
+        pass
       elif ndiff == 4:
         pass
       else:
