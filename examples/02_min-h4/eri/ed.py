@@ -33,6 +33,18 @@ def calc_permutation_sign(m, p, bj_in):
   ncm = sum(bj[:m])
   return (-1)**(ncp+ncm)
 
+def calc_p2(m, n, q, p, bj_in):
+  bj = bj_in.copy()
+  ncq = sum(bj[:q])
+  bj[q] = False
+  ncp = sum(bj[:p])
+  bj[p] = False
+  ncn = sum(bj[:n])
+  bj[n] = True
+  ncm = sum(bj[:m])
+  nsum = ncq+ncp+ncn+ncm
+  return (-1)**nsum
+
 def build_hfci(states, h1, eri, mgb=256, verbose=True):
   nstate = len(states)
   nsite = len(h1)
@@ -77,7 +89,21 @@ def build_hfci(states, h1, eri, mgb=256, verbose=True):
           socc2l = [spin_and_orb(i, nsite) for i in occ2l]
           h2v = pm*calc_h2_ndiff2(M, P, socc2l, eri)
       elif ndiff == 4:
-        h2v = calc_h2_ndiff4(create, destroy, nsite, eri)
+        m, n = sorted(create)
+        p, q = sorted(destroy)
+        ms, m1 = spin_and_orb(m, nsite)
+        ps, p1 = spin_and_orb(p, nsite)
+        ns, n1 = spin_and_orb(n, nsite)
+        qs, q1 = spin_and_orb(q, nsite)
+        if (ms == ps) and (ns == qs):
+          mpbj = bj[ms*nsite:(ms+1)*nsite]
+          pm0 = calc_permutation_sign(m1, p1, mpbj)
+          nqbj = bj[ns*nsite:(ns+1)*nsite]
+          pm1 = calc_permutation_sign(n1, q1, nqbj)
+          pm = pm0*pm1
+          if (ms == ns):  # all 4 orbs have the same spin
+            pm = calc_p2(m1, n1, p1, q1, mpbj)
+        h2v = pm*calc_h2_ndiff4(create, destroy, nsite, eri)
       else:
         pass  # h1v, h2v already initialized to 0
       ham[istate, jstate] = h1v+h2v
