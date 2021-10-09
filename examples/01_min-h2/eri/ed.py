@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import numpy as np
+from time import time
 from itertools import combinations, product
 
 import sys
 sys.path.insert(0, '../../00_states/eri')
-from ed import all_states, bit_string, nbit_diff, diff, count_states, show_states
+from ed import all_states, nbit_diff, diff, count_states, show_states
 
 def read_h5(fh5):
   import h5py
@@ -47,29 +48,31 @@ def calc_h2_ndiff4(create, destroy, nsite, eri):
       h2v -= eri[m1, n1, q1, p1]
   return h2v
 
-def ed(nup, ndn, h1, eri, save_hfci=False):
-  from time import time
-  nsite = len(eri)
-  assert len(h1) == nsite
-  nstate = count_states(nup, ndn, nsite)
-
-  # store all states
-  nbits = nstate*nsite*2
+def store_all_states(nup, ndn, nmo, mgb=16, verbose=True):
+  from ed import bit_string
+  nstate = count_states(nup, ndn, nmo)
+  nbits = nstate*nmo*2
   GB = nbits/8/1024**3
-  print('storing all %d states requires %f GB' % (nstate, GB))
-  if GB > 16:
-    msg = 'too big'
+  if verbose:
+    print('storing all %d states requires %f GB' % (nstate, GB))
+  if GB > mgb:
+    msg = ' more than %d GB' % mgb
     raise RuntimeError(msg)
   start = time()
-  states = [bit_string(*s, nsite) for s in all_states(nup, ndn, nsite)]
+  states = [bit_string(*s, nmo) for s in all_states(nup, ndn, nmo)]
   end = time()
   elapsed = end-start
-  print('stored all states in %f seconds' % elapsed)
+  if verbose:
+    print('stored all states in %f seconds' % elapsed)
+  return states
 
-  # build many-body hamiltonian
+def build_hfci(states, h1, eri, mgb=256, verbose=True):
+  nstate = len(states)
+  nsite = len(h1)
   GB_ham = nstate*nstate*128/8/1024**3
-  print('storing FCI hamiltonian requires %f GB' % GB_ham)
-  if GB_ham > 128:
+  if verbose:
+    print('storing FCI hamiltonian requires %f GB' % GB_ham)
+  if GB_ham > mgb:
     msg = 'ham too big'
     raise RuntimeError(msg)
   start = time()
@@ -83,7 +86,8 @@ def ed(nup, ndn, h1, eri, save_hfci=False):
         continue
       h1v = 0
       h2v = 0
-      # implement these cases one at a time (h2 1up, 1dn; h2 2up, 0dn; h2- 2up 1dn)
+      # implement these cases one at a time
+      #  (0up, 1dn), (1up, 1dn); (0up, 2dn); (2up, 2dn)
       #  first set eri to 0 (e2e=0), then set to 1
       if ndiff == 0:
         occl = np.where(bj)[0]
@@ -103,7 +107,29 @@ def ed(nup, ndn, h1, eri, save_hfci=False):
 
   end = time()
   elapsed = end - start
-  print('built hamiltonian in %f seconds' % elapsed)
+  if verbose:
+    print('built hamiltonian in %f seconds' % elapsed)
+  return ham
+
+def get_all_evals(ham, verbose=True):
+  from numpy.linalg import eigvalsh
+  if verbose:
+    print('diagonalizing...')
+  start = time()
+  evals = eigvalsh(ham)
+  end = time()
+  elapsed = end - start
+  if verbose:
+    print('diagonalized in %f seconds' % elapsed)
+  return evals
+
+def ed(build_hfci_func, nup, ndn, h1, eri,
+       save_hfci=False, verbose=True):
+  nsite = len(eri)
+  assert len(h1) == nsite
+  states = store_all_states(nup, ndn, nsite)
+  ham = build_hfci_func(states, h1, eri, verbose=verbose)
+  # check/store FCI hamiltonian
   is_hermitian = np.allclose(ham, ham.conj().T)
   if not is_hermitian:
     msg = 'FCI hamiltonian is not hermitian'
@@ -111,16 +137,8 @@ def ed(nup, ndn, h1, eri, save_hfci=False):
   if save_hfci:
     from qharv.reel import config_h5
     config_h5.saveh5('mham.h5', ham)
-
   # diagonalize
-  print('diagonalizing...')
-  start = time()
-  from numpy.linalg import eigvalsh
-  evals = eigvalsh(ham)
-  end = time()
-  elapsed = end - start
-  print('diagonalized in %f seconds' % elapsed)
-
+  evals = get_all_evals(ham, verbose=verbose)
   return evals
 
 def write_evals(fout, nup, ndn, h1, eri, h0=0):
@@ -129,7 +147,7 @@ def write_evals(fout, nup, ndn, h1, eri, h0=0):
   nsite = len(eri)
 
   start = time()
-  evals = ed(nup, ndn, h1, eri)
+  evals = ed(build_hfci, nup, ndn, h1, eri)
   end = time()
   elapsed = end-start
   print('nup=%d total time %f seconds\n' % (nup, elapsed))
