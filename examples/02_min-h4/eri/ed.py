@@ -11,6 +11,16 @@ from ed1 import read_h5, spin_and_orb, calc_h1_ndiff0
 from ed1 import calc_h2_ndiff0, calc_h2_ndiff4
 from ed1 import ed
 
+def calc_h1_ndiff2(create, destroy, nsite, h1):
+  h1v = 0
+  m = create[0]
+  p = destroy[0]
+  ms, m1 = spin_and_orb(m, nsite)
+  ps, p1 = spin_and_orb(p, nsite)
+  if ms == ps:
+    h1v = h1[m1, p1]
+  return h1v
+
 def build_hfci(states, h1, eri, mgb=256, verbose=True):
   nstate = len(states)
   nsite = len(h1)
@@ -43,7 +53,7 @@ def build_hfci(states, h1, eri, mgb=256, verbose=True):
         continue
       create, destroy = diff(bi, bj)
       if ndiff == 2:
-        pass
+        h1v = calc_h1_ndiff2(create, destroy, nsite, h1)
       elif ndiff == 4:
         h2v = calc_h2_ndiff4(create, destroy, nsite, eri)
       else:
