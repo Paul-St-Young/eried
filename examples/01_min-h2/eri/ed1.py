@@ -5,7 +5,7 @@ from itertools import combinations, product
 
 import sys
 sys.path.insert(0, '../../00_states/eri')
-from ed import all_states, nbit_diff, diff, count_states, show_states
+from ed0 import all_states, nbit_diff, diff, count_states, show_states
 
 def read_h5(fh5):
   import h5py
@@ -49,7 +49,7 @@ def calc_h2_ndiff4(create, destroy, nsite, eri):
   return h2v
 
 def store_all_states(nup, ndn, nmo, mgb=16, verbose=True):
-  from ed import bit_string
+  from ed0 import bit_string
   nstate = count_states(nup, ndn, nmo)
   nbits = nstate*nmo*2
   GB = nbits/8/1024**3
