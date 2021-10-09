@@ -33,6 +33,20 @@ def calc_h2_ndiff0(soccl, eri):
       h2v -= eri[m1, n1, n1, m1]
   return h2v
 
+def calc_h2_ndiff4(create, destroy, nsite, eri):
+  h2v = 0  # [mp|nq] - [mq|np]
+  m, n = sorted(create)
+  p, q = sorted(destroy)
+  ms, m1 = spin_and_orb(m, nsite)
+  ps, p1 = spin_and_orb(p, nsite)
+  ns, n1 = spin_and_orb(n, nsite)
+  qs, q1 = spin_and_orb(q, nsite)
+  if (ms == ps) and (ns == qs):
+    h2v = eri[m1, n1, p1, q1]
+    if (ms == ns):
+      h2v -= eri[m1, n1, q1, p1]
+  return h2v
+
 def ed(nup, ndn, h1, eri, save_hfci=False):
   from time import time
   nsite = len(eri)
@@ -82,7 +96,7 @@ def ed(nup, ndn, h1, eri, save_hfci=False):
       if ndiff == 2:
         pass
       elif ndiff == 4:
-        pass
+        h2v = calc_h2_ndiff4(create, destroy, nsite, eri)
       else:
         pass  # h1v, h2v already initialized to 0
       ham[istate, jstate] = h1v+h2v
