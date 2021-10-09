@@ -21,6 +21,19 @@ def calc_h1_ndiff2(create, destroy, nsite, h1):
     h1v = h1[m1, p1]
   return h1v
 
+def calc_h2_ndiff2(create, destroy, nsite, soccl, eri):
+  m = create[0]
+  p = destroy[0]
+  ms, m1 = spin_and_orb(m, nsite)
+  ps, p1 = spin_and_orb(p, nsite)
+  h2v = 0  # [mp|nn] - [mn|np]
+  if ms == ps:
+    for (ns, n1) in soccl:
+      h2v += eri[m1, n1, p1, n1]
+      if ms == ns:
+        h2v -= eri[m1, n1, n1, p1]
+  return h2v
+
 def build_hfci(states, h1, eri, mgb=256, verbose=True):
   nstate = len(states)
   nsite = len(h1)
@@ -54,6 +67,9 @@ def build_hfci(states, h1, eri, mgb=256, verbose=True):
       create, destroy = diff(bi, bj)
       if ndiff == 2:
         h1v = calc_h1_ndiff2(create, destroy, nsite, h1)
+        occ2l = np.where(bi&bj)[0]
+        socc2l = [spin_and_orb(i, nsite) for i in occ2l]
+        h2v = calc_h2_ndiff2(create, destroy, nsite, socc2l, eri)
       elif ndiff == 4:
         h2v = calc_h2_ndiff4(create, destroy, nsite, eri)
       else:
